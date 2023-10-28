@@ -2,10 +2,8 @@ package org.example.exercicio7;
 
 import javax.crypto.*;
 import javax.crypto.spec.GCMParameterSpec;
-import java.nio.charset.StandardCharsets;
 import java.security.*;
 import java.util.Arrays;
-import java.util.Base64;
 
 public class CipherControl {
 
@@ -40,21 +38,20 @@ public class CipherControl {
         cipher.init(Cipher.ENCRYPT_MODE, key, parameterSpec);
 
         cipher.updateAAD(additional.getBytes());
-        byte[] bytes = new byte[cipher.getOutputSize(message.length)];
+         byte[] bytes = new byte[cipher.getOutputSize(message.length)];
+
         cipher.doFinal(message, 0, message.length, bytes);
-
         byte[] auth = Arrays.copyOfRange(bytes, bytes.length - (authLength / Byte.SIZE), bytes.length);
-        byte[] cipherText = Arrays.copyOfRange(bytes, 0, bytes.length - (authLength / Byte.SIZE));
 
-        return new CipherTextAuth(cipherText, auth);
+        return new CipherTextAuth(bytes, auth);
     }
 
-    public static byte[] decipher(byte[] cipherText, String additional, Key key, byte[] iv, int authLength) throws NoSuchPaddingException, NoSuchAlgorithmException, InvalidAlgorithmParameterException, InvalidKeyException, IllegalBlockSizeException, BadPaddingException {
+    public static byte[] decipher(byte[] cipherText, byte[] additional, Key key, byte[] iv, int authLength) throws NoSuchPaddingException, NoSuchAlgorithmException, InvalidAlgorithmParameterException, InvalidKeyException, IllegalBlockSizeException, BadPaddingException {
         GCMParameterSpec parameterSpec = new GCMParameterSpec(authLength, iv);
         Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");
         cipher.init(Cipher.DECRYPT_MODE, key, parameterSpec);
 
-        cipher.updateAAD(additional.getBytes());
+        cipher.updateAAD(additional);
         return cipher.doFinal(cipherText);
     }
 
@@ -72,7 +69,7 @@ public class CipherControl {
         SecretKey key = keyGen.generateKey();
 
         CipherTextAuth bytes = cipher("Hello I am Miguel".getBytes(), "123", key, "123456789876".getBytes(), 128);
-        //byte[] bytes2 = decipher(bytes, "123", key, "12345678987654321".getBytes(), 128);
-        System.out.println(bytes);
+        byte[] bytes2 = decipher(bytes.cipherText, "123".getBytes(), key, "123456789876".getBytes(), 128);
+        printString(bytes2);
     }
 }

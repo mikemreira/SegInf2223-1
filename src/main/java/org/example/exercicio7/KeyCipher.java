@@ -73,6 +73,9 @@ public class KeyCipher {
         byte[] keyBytes = new byte[] {};
         CipherControl.CipherTextAuth text;
 
+        String JOSE_HEADER = "{\"alg\":\"RSA-OAEP\",\"enc\":\"A256GCM\"}";
+        String JOSE_HEADER_BASE64 = Base64.getUrlEncoder().withoutPadding().encodeToString(JOSE_HEADER.getBytes());
+
         for (;;) {
 
             System.out.print("$ ");
@@ -84,13 +87,10 @@ public class KeyCipher {
                         System.out.println("Expected 4 arguments, but received " + str.length);
                         break;
                     }
-                    String JOSE_HEADER = "{\"alg\":\"RSA-OAEP\",\"enc\":\"A256GCM\"}";
-                    String JOSE_HEADER_BASE64 = Base64.getUrlEncoder().withoutPadding().encodeToString(JOSE_HEADER.getBytes());
-                    text = CipherControl.cipher(str[2].getBytes(),"123", publicKey, "123456789".getBytes(), 128);
+                    text = CipherControl.cipher(str[2].getBytes(), JOSE_HEADER_BASE64, publicKey, "123456789".getBytes(), 128);
                     keyBytes = cipherKey(CertificateValidator.validateCertPath(str[3], intermediates, trustAnchors), publicKey);
                     String JWE_KEY_BASE64 = Base64.getUrlEncoder().withoutPadding().encodeToString(keyBytes);
                     String IV_BASE64 = Base64.getUrlEncoder().withoutPadding().encodeToString("123456789".getBytes());
-                    String AAD_BASE64 = Base64.getUrlEncoder().withoutPadding().encodeToString("123".getBytes());
                     String CIPHER_TEXT_BASE64 = Base64.getUrlEncoder().withoutPadding().encodeToString(text.cipherText);
                     String CIPHER_AUTH_BASE64 = Base64.getUrlEncoder().withoutPadding().encodeToString(text.authText);
                     System.out.print("JWE token = ");
@@ -103,19 +103,11 @@ public class KeyCipher {
                         break;
                     }
                     String[] JWE_SPLIT = str[2].split("\\.");
-                    for (String str1 : JWE_SPLIT) {
-                        System.out.println(str1);
-                    }
-                    byte[] JOSE_HEADER = Base64.getUrlDecoder().decode(JWE_SPLIT[0]);
                     byte[] CIPHER_DECODE = Base64.getUrlDecoder().decode(JWE_SPLIT[3]);
-                    printString(CIPHER_DECODE);
                     byte[] IV = Base64.getUrlDecoder().decode(JWE_SPLIT[2]);
-                    printString(IV);
                     byte[] KEY = Base64.getUrlDecoder().decode(JWE_SPLIT[1]);
                     Key keyDecipher = decipherKey(KEY, "./certificates-keys/pfx/" + str[3]);
-                    byte[] AAD = Base64.getUrlDecoder().decode(JWE_SPLIT[4]);
-                    printString(AAD);
-                    byte[] decipherText = CipherControl.decipher(CIPHER_DECODE, buildString(AAD), keyDecipher, IV, 128);
+                    byte[] decipherText = CipherControl.decipher(CIPHER_DECODE, JOSE_HEADER_BASE64.getBytes(), keyDecipher, IV, 128);
                     System.out.print("Decrypted text = ");
                     printString(decipherText);
                 }
