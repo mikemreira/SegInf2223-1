@@ -9,6 +9,7 @@ import java.security.*;
 import java.security.cert.CertPathValidatorException;
 import java.security.cert.CertificateException;
 import java.security.spec.InvalidKeySpecException;
+import java.util.Arrays;
 import java.util.Base64;
 import java.util.Enumeration;
 import java.util.Scanner;
@@ -102,13 +103,19 @@ public class KeyCipher {
                         break;
                     }
                     String[] JWE_SPLIT = str[2].split("\\.");
-                    byte[] CIPHER_DECODE = Base64.getDecoder().decode(JWE_SPLIT[3].getBytes(StandardCharsets.UTF_8));
+                    for (String str1 : JWE_SPLIT) {
+                        System.out.println(str1);
+                    }
+                    byte[] JOSE_HEADER = Base64.getUrlDecoder().decode(JWE_SPLIT[0]);
+                    byte[] CIPHER_DECODE = Base64.getUrlDecoder().decode(JWE_SPLIT[3]);
                     printString(CIPHER_DECODE);
-                    byte[] IV = Base64.getDecoder().decode(JWE_SPLIT[2].getBytes(StandardCharsets.UTF_8));
+                    byte[] IV = Base64.getUrlDecoder().decode(JWE_SPLIT[2]);
                     printString(IV);
-                    byte[] KEY = Base64.getDecoder().decode(JWE_SPLIT[1].getBytes(StandardCharsets.UTF_8));
+                    byte[] KEY = Base64.getUrlDecoder().decode(JWE_SPLIT[1]);
                     Key keyDecipher = decipherKey(KEY, "./certificates-keys/pfx/" + str[3]);
-                    byte[] decipherText = CipherControl.decipher(CIPHER_DECODE, "123", keyDecipher, IV, 128);
+                    byte[] AAD = Base64.getUrlDecoder().decode(JWE_SPLIT[4]);
+                    printString(AAD);
+                    byte[] decipherText = CipherControl.decipher(CIPHER_DECODE, buildString(AAD), keyDecipher, IV, 128);
                     System.out.print("Decrypted text = ");
                     printString(decipherText);
                 }

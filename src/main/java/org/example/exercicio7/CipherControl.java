@@ -2,6 +2,7 @@ package org.example.exercicio7;
 
 import javax.crypto.*;
 import javax.crypto.spec.GCMParameterSpec;
+import java.nio.charset.StandardCharsets;
 import java.security.*;
 import java.util.Arrays;
 import java.util.Base64;
@@ -54,8 +55,6 @@ public class CipherControl {
         cipher.init(Cipher.DECRYPT_MODE, key, parameterSpec);
 
         cipher.updateAAD(additional.getBytes());
-        System.out.println(cipherText.length);
-
         return cipher.doFinal(cipherText);
     }
 
@@ -72,7 +71,7 @@ public class CipherControl {
         keyGen.init(secRandom);
         SecretKey key = keyGen.generateKey();
 
-        CipherTextAuth bytes = cipher("Hello I am Miguel".getBytes(), "123", key, "12345678987654321".getBytes(), 128);
+        CipherTextAuth bytes = cipher("Hello I am Miguel".getBytes(), "123", key, "123456789876".getBytes(), 128);
         //byte[] bytes2 = decipher(bytes, "123", key, "12345678987654321".getBytes(), 128);
         System.out.println(bytes);
     }
