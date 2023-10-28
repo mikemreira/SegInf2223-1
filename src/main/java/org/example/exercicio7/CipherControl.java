@@ -4,6 +4,7 @@ import javax.crypto.*;
 import javax.crypto.spec.GCMParameterSpec;
 import java.security.*;
 import java.util.Arrays;
+import java.util.Base64;
 
 public class CipherControl {
 
@@ -32,7 +33,7 @@ public class CipherControl {
         }
     }
 
-    public static byte[] cipher(byte[] message, String additional, SecretKey key, byte[] iv, int authLength) throws NoSuchAlgorithmException, NoSuchPaddingException, InvalidKeyException, IllegalBlockSizeException, BadPaddingException, InvalidAlgorithmParameterException, ShortBufferException {
+    public static CipherTextAuth cipher(byte[] message, String additional, SecretKey key, byte[] iv, int authLength) throws NoSuchAlgorithmException, NoSuchPaddingException, InvalidKeyException, IllegalBlockSizeException, BadPaddingException, InvalidAlgorithmParameterException, ShortBufferException {
         GCMParameterSpec parameterSpec = new GCMParameterSpec(authLength, iv);
         Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");
         cipher.init(Cipher.ENCRYPT_MODE, key, parameterSpec);
@@ -44,10 +45,7 @@ public class CipherControl {
         byte[] auth = Arrays.copyOfRange(bytes, bytes.length - (authLength / Byte.SIZE), bytes.length);
         byte[] cipherText = Arrays.copyOfRange(bytes, 0, bytes.length - (authLength / Byte.SIZE));
 
-
-
-        CipherTextAuth cipherTextAuth = new CipherTextAuth(cipherText, auth);
-        return bytes;
+        return new CipherTextAuth(cipherText, auth);
     }
 
     public static byte[] decipher(byte[] cipherText, String additional, Key key, byte[] iv, int authLength) throws NoSuchPaddingException, NoSuchAlgorithmException, InvalidAlgorithmParameterException, InvalidKeyException, IllegalBlockSizeException, BadPaddingException {
@@ -56,6 +54,8 @@ public class CipherControl {
         cipher.init(Cipher.DECRYPT_MODE, key, parameterSpec);
 
         cipher.updateAAD(additional.getBytes());
+        System.out.println(cipherText.length);
+
         return cipher.doFinal(cipherText);
     }
 
@@ -72,8 +72,8 @@ public class CipherControl {
         keyGen.init(secRandom);
         SecretKey key = keyGen.generateKey();
 
-        byte[] bytes = cipher("Hello I am Miguel".getBytes(), "123", key, "12345678987654321".getBytes(), 128);
+        CipherTextAuth bytes = cipher("Hello I am Miguel".getBytes(), "123", key, "12345678987654321".getBytes(), 128);
         //byte[] bytes2 = decipher(bytes, "123", key, "12345678987654321".getBytes(), 128);
-        printString(bytes);
+        System.out.println(bytes);
     }
 }

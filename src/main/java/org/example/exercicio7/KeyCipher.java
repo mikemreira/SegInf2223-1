@@ -4,10 +4,12 @@ import javax.crypto.*;
 import javax.crypto.spec.SecretKeySpec;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.security.*;
 import java.security.cert.CertPathValidatorException;
 import java.security.cert.CertificateException;
 import java.security.spec.InvalidKeySpecException;
+import java.util.Base64;
 import java.util.Enumeration;
 import java.util.Scanner;
 
@@ -20,7 +22,7 @@ import java.util.Scanner;
 
 public class KeyCipher {
     public static byte[] cipherKey(PublicKey key, SecretKey keyToCipher) throws NoSuchAlgorithmException, NoSuchPaddingException, KeyStoreException, IOException, CertificateException, UnrecoverableKeyException, IllegalBlockSizeException, InvalidKeyException, BadPaddingException, InvalidKeySpecException {
-        Cipher cipher = Cipher.getInstance("RSA/ECB/OAEPWITHSHA1ANDMGF1PADDING");
+        Cipher cipher = Cipher.getInstance("RSA/ECB/OAEPPadding");
         cipher.init(Cipher.ENCRYPT_MODE, key);
         return cipher.doFinal(keyToCipher.getEncoded());
     }
@@ -36,7 +38,7 @@ public class KeyCipher {
         do {
             String alias = entries.nextElement();
             PrivateKey privateKey = (PrivateKey) keyStore.getKey(alias, "changeit".toCharArray());
-            Cipher cipher = Cipher.getInstance("RSA");
+            Cipher cipher = Cipher.getInstance("RSA/ECB/OAEPPadding");
             cipher.init(Cipher.DECRYPT_MODE, privateKey);
             bytes = cipher.doFinal(key);
             return new SecretKeySpec(bytes, "AES");
@@ -68,7 +70,7 @@ public class KeyCipher {
         SecretKey publicKey = keyGen.generateKey();
 
         byte[] keyBytes = new byte[] {};
-        byte[] text = new byte[] {};
+        CipherControl.CipherTextAuth text;
 
         for (;;) {
 
@@ -81,18 +83,32 @@ public class KeyCipher {
                         System.out.println("Expected 4 arguments, but received " + str.length);
                         break;
                     }
+                    String JOSE_HEADER = "{\"alg\":\"RSA-OAEP\",\"enc\":\"A256GCM\"}";
+                    String JOSE_HEADER_BASE64 = Base64.getUrlEncoder().withoutPadding().encodeToString(JOSE_HEADER.getBytes());
                     text = CipherControl.cipher(str[2].getBytes(),"123", publicKey, "123456789".getBytes(), 128);
                     keyBytes = cipherKey(CertificateValidator.validateCertPath(str[3], intermediates, trustAnchors), publicKey);
+                    String JWE_KEY_BASE64 = Base64.getUrlEncoder().withoutPadding().encodeToString(keyBytes);
+                    String IV_BASE64 = Base64.getUrlEncoder().withoutPadding().encodeToString("123456789".getBytes());
+                    String AAD_BASE64 = Base64.getUrlEncoder().withoutPadding().encodeToString("123".getBytes());
+                    String CIPHER_TEXT_BASE64 = Base64.getUrlEncoder().withoutPadding().encodeToString(text.cipherText);
+                    String CIPHER_AUTH_BASE64 = Base64.getUrlEncoder().withoutPadding().encodeToString(text.authText);
                     System.out.print("JWE token = ");
-                    printString(text);
+                    String JWE_TOKEN = JOSE_HEADER_BASE64 + "." + JWE_KEY_BASE64 + "." + IV_BASE64 + "." + CIPHER_TEXT_BASE64 + "." + CIPHER_AUTH_BASE64;
+                    System.out.println(JWE_TOKEN);
                 }
                 case "jwe dec" -> {
                     if (str.length != 4) {
                         System.out.println("Expected 4 arguments, but input was " + str.length);
                         break;
                     }
-                    Key keyDecipher = decipherKey(keyBytes, "./certificates-keys/pfx/" + str[3]);
-                    byte[] decipherText = CipherControl.decipher(str[2].getBytes(), "123", keyDecipher, "123456789".getBytes(), 128);
+                    String[] JWE_SPLIT = str[2].split("\\.");
+                    byte[] CIPHER_DECODE = Base64.getDecoder().decode(JWE_SPLIT[3].getBytes(StandardCharsets.UTF_8));
+                    printString(CIPHER_DECODE);
+                    byte[] IV = Base64.getDecoder().decode(JWE_SPLIT[2].getBytes(StandardCharsets.UTF_8));
+                    printString(IV);
+                    byte[] KEY = Base64.getDecoder().decode(JWE_SPLIT[1].getBytes(StandardCharsets.UTF_8));
+                    Key keyDecipher = decipherKey(KEY, "./certificates-keys/pfx/" + str[3]);
+                    byte[] decipherText = CipherControl.decipher(CIPHER_DECODE, "123", keyDecipher, IV, 128);
                     System.out.print("Decrypted text = ");
                     printString(decipherText);
                 }
